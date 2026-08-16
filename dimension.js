@@ -1,0 +1,29 @@
+document.addEventListener('DOMContentLoaded',()=>{
+ const {D,byId,fmt,years,svgLine}=JP;
+ const key=document.body.dataset.dimension;
+ const cfg={
+  social:{name:'Dimensión social',color:'var(--social)',desc:'Educación, salud y servicios básicos de El Tambo: conectividad, aprendizajes, aulas, anemia, desnutrición, SIS, agua, saneamiento y electricidad.',hero:['aulas_buen_estado','anemia_oms','viviendas_agua_red']},
+  economica:{name:'Dimensión económica',color:'var(--economic)',desc:'Desarrollo humano, ingresos, capital humano, riego e infraestructura vial del distrito de El Tambo.',hero:['idh','ingreso_hogar','riego_superficie']},
+  ambiental:{name:'Dimensión ambiental',color:'var(--environment)',desc:'Residuos sólidos, cobertura de recolección y gestión municipal vinculada a cauces y drenajes en El Tambo.',hero:['residuos_dom_pc','recoleccion_proxy','cauces_proxy']},
+  institucional:{name:'Dimensión institucional',color:'var(--institution)',desc:'Seguridad ciudadana y finanzas públicas de la Municipalidad Distrital de El Tambo.',hero:['muertes_violentas']}
+ }[key];
+ if(!cfg)return;
+ const inds=D.indicators.filter(i=>i.dimension.toLowerCase()===(key==='economica'?'económica':key));
+ document.querySelector('#dimName').textContent=cfg.name;document.querySelector('#dimDesc').textContent=cfg.desc;document.querySelector('#dimAccent').style.background=cfg.color;document.title=cfg.name+' | El Tambo en perspectiva';
+ const latest=i=>{const ys=years(i);if(!ys.length)return null;const y=ys[ys.length-1];return {y,v:i.values[y]}};
+ const heroEl=document.querySelector('#dimSummary');
+ if(heroEl){heroEl.innerHTML=cfg.hero.map(id=>{const i=byId(id);if(!i)return'';const l=latest(i);if(!l)return'';return `<article><div class="eyebrow">${i.citizen}${i.proxy?' <span class="proxy-badge">PROXY</span>':''}</div><strong>${fmt(i,l.v)}</strong><span>Último dato disponible · ${l.y}</span></article>`}).join('')}
+ const sel=document.querySelector('#indicatorSelect');
+ function textTimeline(i){const ys=years(i);return `<div class="text-timeline">${ys.map(y=>`<div class="text-timeline-row"><b>${y}</b><span>${fmt(i,i.values[y])}</span></div>`).join('')}</div>`}
+ if(sel){sel.innerHTML=inds.map(i=>`<option value="${i.id}">${i.citizen}</option>`).join('');
+  function render(id){const i=byId(id);if(!i)return;const ys=years(i),first=ys[0],last=ys[ys.length-1]; if(!ys.length){return;}document.querySelector('#chartName').innerHTML=i.citizen+(i.proxy?' <span class="proxy-badge" title="Indicador aproximado ante la ausencia de una medición directa comparable.">PROXY</span>':'');document.querySelector('#chartTech').textContent=i.technical;const chart=document.querySelector('#chart');chart.innerHTML=i.valueType==='text'?textTimeline(i):svgLine(i);const svg=chart.querySelector('svg');if(svg)svg.id='indicatorChartSvg';document.querySelector('#chartSource').textContent='Fuente: '+i.source;let dl=document.querySelector('#indicatorDownloads');if(!dl){dl=document.createElement('div');dl.id='indicatorDownloads';dl.className='download-actions';chart.after(dl)}dl.innerHTML='<button id="dlTable">Descargar tabla Excel</button><button id="dlCsv">CSV</button>'+(i.valueType==='text'?'':'<button id="dlPng">Descargar gráfico PNG</button><button id="dlSvg">SVG</button>');document.querySelector('#dlTable').onclick=()=>JP.downloadIndicatorXlsx(i);document.querySelector('#dlCsv').onclick=()=>JP.downloadIndicatorCsv(i);if(i.valueType!=='text'){document.querySelector('#dlPng').onclick=()=>JP.downloadChartPng('indicatorChartSvg',i.citizen);document.querySelector('#dlSvg').onclick=()=>JP.downloadChartSvg('indicatorChartSvg',i.citizen)}const note=document.querySelector('#chartRead');note.innerHTML=`<b>Primer dato:</b> ${first} · ${fmt(i,i.values[first])} &nbsp; <b>Último dato:</b> ${last} · ${fmt(i,i.values[last])}${i.note?`<br><span class="technical">${i.note}</span>`:''}`}
+  if(inds.length){sel.onchange=()=>render(sel.value);render(sel.value)}
+ }
+ const idx=document.querySelector('#indicatorIndex');if(idx){idx.innerHTML=`<div class="indicator-row indicator-head"><div class="idx-name eyebrow">Indicador</div><div class="idx-year eyebrow">Último año</div><div class="idx-year eyebrow">Último valor</div></div>`+inds.map(i=>{const l=latest(i);return `<div class="indicator-row"><div class="idx-name">${i.citizen}${i.proxy?' <span class="proxy-badge">PROXY</span>':''}<div class="technical">${i.technical}</div></div><div class="idx-year">${l?l.y:'—'}</div><div class="idx-year">${l?fmt(i,l.v):'—'}</div></div>`}).join('')}
+ if(key==='institucional'){
+   const cards=[...document.querySelectorAll('[data-inst-target]')],panels=[...document.querySelectorAll('[data-inst-panel]')],choice=document.querySelector('#queQuieresVer');
+   function openEnvironment(name,{scroll=true,updateHash=true}={}){cards.forEach(card=>{const active=card.dataset.instTarget===name;card.classList.toggle('active',active);card.setAttribute('aria-expanded',String(active))});panels.forEach(panel=>panel.hidden=panel.dataset.instPanel!==name);const panel=document.querySelector(`[data-inst-panel="${name}"]`);if(updateHash&&panel)history.replaceState(null,'','#'+panel.id);if(scroll&&panel)panel.scrollIntoView({behavior:'smooth',block:'start'})}
+   function closeEnvironment(){cards.forEach(c=>{c.classList.remove('active');c.setAttribute('aria-expanded','false')});panels.forEach(p=>p.hidden=true);history.replaceState(null,'',location.pathname+location.search);choice?.scrollIntoView({behavior:'smooth',block:'start'})}
+   cards.forEach(card=>card.addEventListener('click',()=>openEnvironment(card.dataset.instTarget)));document.querySelectorAll('[data-back-to-choice]').forEach(btn=>btn.addEventListener('click',closeEnvironment));const hash=location.hash.toLowerCase();if(hash==='#finanzaspublicas')openEnvironment('finanzas',{scroll:false,updateHash:false});else if(hash==='#seguridadciudadana')openEnvironment('seguridad',{scroll:false,updateHash:false});
+ }
+});
